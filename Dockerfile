@@ -1,4 +1,4 @@
-### Stage 1: Build
+### Build Stage
 FROM golang:1.22-alpine AS builder
 
 WORKDIR /build
@@ -8,7 +8,7 @@ COPY go.mod main.go ./
 RUN go mod tidy && \
     CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o flashcards .
 
-### Stage 2: Final (~15MB)
+### Final Stage
 FROM alpine:3.19
 
 RUN apk add --no-cache ca-certificates tzdata
