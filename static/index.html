@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flashcards</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --surface2: #1c1c28;
+    --surface3: #252535;
+    --border: #2a2a3d;
+    --accent: #7c6af7;
+    --accent2: #f7916a;
+    --gold: #f5c842;
+    --green: #42d4a4;
+    --red: #f76a6a;
+    --yellow: #f7c96a;
+    --text: #e8e8f0;
+    --text2: #9898b8;
+    --text3: #5a5a7a;
+    --radius: 12px;
+    --radius-lg: 20px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Syne', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    top: -50%; left: -50%;
+    width: 200%; height: 200%;
+    background:
+      radial-gradient(ellipse at 30% 20%, rgba(124,106,247,0.06) 0%, transparent 50%),
+      radial-gradient(ellipse at 70% 80%, rgba(247,145,106,0.04) 0%, transparent 50%);
+    pointer-events: none; z-index: 0;
+  }
+  #app { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; padding: 20px; }
+
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 24px 0 32px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 32px;
+  }
+  .header-title { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; }
+  .header-title span { color: var(--accent); }
+  .header-stats { display: flex; gap: 16px; font-family: 'Space Mono', monospace; font-size: 0.75rem; }
+  .stat-pill {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 100px; padding: 6px 12px;
+  }
+  .stat-pill .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .dot-red { background: var(--red); }
+  .dot-yellow { background: var(--yellow); }
+  .dot-green { background: var(--green); }
+
+  .piles-bar { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 32px; }
+  .pile-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px; text-align: center;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .pile-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .pile-num { font-size: 2rem; font-weight: 800; font-family: 'Space Mono', monospace; line-height: 1; margin-bottom: 4px; }
+  .pile-label { font-size: 0.75rem; color: var(--text2); font-weight: 600; }
+  .pile-1 .pile-num { color: var(--red); }
+  .pile-2 .pile-num { color: var(--yellow); }
+  .pile-3 .pile-num { color: var(--green); }
+
+  .progress-wrap { margin-bottom: 32px; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text2); margin-bottom: 8px; font-family: 'Space Mono', monospace; }
+  .progress-track { height: 6px; background: var(--surface2); border-radius: 100px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--green)); border-radius: 100px; transition: width 0.6s cubic-bezier(0.4,0,0.2,1); }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 20px; border-radius: var(--radius); border: none;
+    font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.875rem;
+    cursor: pointer; transition: all 0.15s; text-decoration: none;
+  }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover { background: #6a58e0; transform: translateY(-1px); }
+  .btn-ghost { background: var(--surface); border: 1px solid var(--border); color: var(--text2); }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--text); }
+  .btn-danger { background: rgba(247,106,106,0.15); border: 1px solid rgba(247,106,106,0.3); color: var(--red); }
+  .btn-danger:hover { background: rgba(247,106,106,0.25); }
+  .btn-sm { padding: 6px 12px; font-size: 0.8rem; }
+  .btn-lg { padding: 14px 28px; font-size: 1rem; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  .main-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 32px; }
+
+  .view { display: none; }
+  .view.active { display: block; }
+
+  .form-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 28px; }
+  .form-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 24px; }
+  .form-group { margin-bottom: 16px; }
+  .form-label { display: block; font-size: 0.75rem; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+  .form-input, .form-textarea, .form-select {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius); color: var(--text);
+    font-family: 'Syne', sans-serif; font-size: 0.95rem;
+    padding: 12px 14px; transition: border-color 0.15s; outline: none;
+  }
+  .form-input:focus, .form-textarea:focus, .form-select:focus { border-color: var(--accent); }
+  .form-textarea { resize: vertical; min-height: 80px; }
+  .form-select option { background: var(--surface2); }
+  .form-actions { display: flex; gap: 10px; margin-top: 24px; flex-wrap: wrap; }
+
+  .cat-toggle { display: flex; gap: 8px; }
+  .cat-btn {
+    flex: 1; padding: 10px; border-radius: var(--radius);
+    border: 1px solid var(--border); background: var(--surface2);
+    color: var(--text2); font-family: 'Syne', sans-serif;
+    font-weight: 700; font-size: 0.875rem; cursor: pointer; transition: all 0.15s; text-align: center;
+  }
+  .cat-btn.active[data-cat="Leyes"] { background: rgba(124,106,247,0.2); border-color: var(--accent); color: var(--accent); }
+  .cat-btn.active[data-cat="Tecnología"] { background: rgba(247,145,106,0.2); border-color: var(--accent2); color: var(--accent2); }
+
+  .test-menu { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 28px; }
+  .test-menu h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 8px; }
+  .test-menu p { color: var(--text2); font-size: 0.875rem; margin-bottom: 24px; }
+  .test-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .test-opt {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px 16px;
+    cursor: pointer; transition: all 0.2s; text-align: center;
+  }
+  .test-opt:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .test-opt .icon { font-size: 2rem; margin-bottom: 8px; display: block; }
+  .test-opt .label { font-weight: 700; font-size: 0.9rem; }
+  .test-opt .sub { color: var(--text2); font-size: 0.75rem; margin-top: 4px; font-family: 'Space Mono', monospace; }
+  .pile-filter { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pile-filter-btn {
+    padding: 6px 14px; border-radius: 100px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text2);
+    font-family: 'Syne', sans-serif; font-size: 0.8rem; font-weight: 700; cursor: pointer; transition: all 0.15s;
+  }
+  .pile-filter-btn.active { border-color: var(--accent); background: rgba(124,106,247,0.15); color: var(--accent); }
+
+  .test-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+  .test-progress-text { font-family: 'Space Mono', monospace; font-size: 0.875rem; color: var(--text2); }
+  .test-progress-track { width: 120px; height: 4px; background: var(--surface2); border-radius: 100px; overflow: hidden; margin-top: 4px; }
+  .test-progress-fill { height: 100%; background: var(--accent); border-radius: 100px; transition: width 0.3s; }
+
+  .card-scene { perspective: 1200px; margin: 0 auto 28px; }
+  .card-inner {
+    position: relative; transform-style: preserve-3d;
+    transition: transform 0.55s cubic-bezier(0.4,0,0.2,1); cursor: pointer;
+  }
+  .card-inner.flipped { transform: rotateY(180deg); }
+  .card-face {
+    width: 100%; min-height: 260px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 40px 32px;
+    backface-visibility: hidden; -webkit-backface-visibility: hidden;
+    position: relative; overflow: hidden;
+  }
+  .card-face::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0;
+    height: 3px; border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+  .card-front::before { background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+  .card-back { transform: rotateY(180deg); }
+  .card-back::before { background: linear-gradient(90deg, var(--green), var(--accent)); }
+  .card-face-label { position: absolute; top: 16px; left: 20px; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text3); font-family: 'Space Mono', monospace; }
+  .card-cat-badge { position: absolute; top: 12px; right: 16px; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 4px 10px; border-radius: 100px; }
+  .badge-leyes { background: rgba(124,106,247,0.2); color: var(--accent); }
+  .badge-tech { background: rgba(247,145,106,0.2); color: var(--accent2); }
+  .card-text { font-size: 1.3rem; font-weight: 700; text-align: center; line-height: 1.5; color: var(--text); }
+  .card-hint { margin-top: 16px; font-size: 0.8rem; color: var(--text3); font-family: 'Space Mono', monospace; }
+  .card-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .card-action {
+    flex: 1; min-width: 100px; max-width: 180px;
+    padding: 14px 16px; border-radius: var(--radius); border: 1px solid transparent;
+    font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.9rem;
+    cursor: pointer; transition: all 0.15s; text-align: center;
+  }
+  .action-fail { background: rgba(247,106,106,0.15); border-color: rgba(247,106,106,0.3); color: var(--red); }
+  .action-fail:hover { background: rgba(247,106,106,0.3); transform: translateY(-2px); }
+  .action-mid { background: rgba(247,201,106,0.15); border-color: rgba(247,201,106,0.3); color: var(--yellow); }
+  .action-mid:hover { background: rgba(247,201,106,0.3); transform: translateY(-2px); }
+  .action-good { background: rgba(66,212,164,0.15); border-color: rgba(66,212,164,0.3); color: var(--green); }
+  .action-good:hover { background: rgba(66,212,164,0.3); transform: translateY(-2px); }
+
+  .manage-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  .search-wrap { flex: 1; min-width: 200px; position: relative; }
+  .search-wrap input {
+    width: 100%; background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); color: var(--text);
+    font-family: 'Syne', sans-serif; font-size: 0.875rem;
+    padding: 10px 14px 10px 38px; outline: none; transition: border-color 0.15s;
+  }
+  .search-wrap input:focus { border-color: var(--accent); }
+  .search-wrap::before { content: '🔍'; position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 0.875rem; pointer-events: none; }
+  .cards-list { display: flex; flex-direction: column; gap: 8px; }
+  .card-item {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 16px;
+    display: flex; align-items: center; gap: 12px; transition: border-color 0.15s;
+  }
+  .card-item.selected { border-color: var(--accent); background: rgba(124,106,247,0.05); }
+  .card-item input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px; cursor: pointer; flex-shrink: 0; }
+  .card-item-content { flex: 1; min-width: 0; }
+  .card-item-q { font-weight: 600; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card-item-a { font-size: 0.8rem; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+  .card-item-meta { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+  .pile-badge { font-size: 0.7rem; font-family: 'Space Mono', monospace; padding: 2px 8px; border-radius: 100px; }
+  .pile-badge-1 { background: rgba(247,106,106,0.15); color: var(--red); }
+  .pile-badge-2 { background: rgba(247,201,106,0.15); color: var(--yellow); }
+  .pile-badge-3 { background: rgba(66,212,164,0.15); color: var(--green); }
+  .manage-bulk { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; }
+  .select-count { font-size: 0.8rem; color: var(--text2); font-family: 'Space Mono', monospace; }
+
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; text-align: center; }
+  .stat-big { font-size: 2.5rem; font-weight: 800; font-family: 'Space Mono', monospace; line-height: 1; margin-bottom: 6px; }
+  .stat-desc { font-size: 0.75rem; color: var(--text2); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+  .bar-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .bar-label { width: 80px; font-size: 0.8rem; font-weight: 600; color: var(--text2); text-align: right; flex-shrink: 0; }
+  .bar-track { flex: 1; height: 28px; background: var(--surface2); border-radius: 6px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 6px; transition: width 0.8s cubic-bezier(0.4,0,0.2,1); display: flex; align-items: center; padding-left: 10px; font-size: 0.75rem; font-weight: 700; font-family: 'Space Mono', monospace; min-width: 30px; }
+  .bar-fill-1 { background: linear-gradient(90deg, rgba(247,106,106,0.6), rgba(247,106,106,0.3)); color: var(--red); }
+  .bar-fill-2 { background: linear-gradient(90deg, rgba(247,201,106,0.6), rgba(247,201,106,0.3)); color: var(--yellow); }
+  .bar-fill-3 { background: linear-gradient(90deg, rgba(66,212,164,0.6), rgba(66,212,164,0.3)); color: var(--green); }
+
+  #toast {
+    position: fixed; bottom: 28px; right: 28px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px 20px;
+    font-size: 0.875rem; font-weight: 600;
+    transform: translateY(100px); opacity: 0;
+    transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+    z-index: 9999; max-width: 300px;
+  }
+  #toast.show { transform: translateY(0); opacity: 1; }
+  #toast.success { border-color: var(--green); color: var(--green); }
+  #toast.error { border-color: var(--red); color: var(--red); }
+  #toast.info { border-color: var(--accent); color: var(--accent); }
+
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7); z-index: 1000;
+    align-items: center; justify-content: center; padding: 20px;
+    backdrop-filter: blur(4px);
+  }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 28px; width: 100%; max-width: 520px; animation: slideUp 0.25s ease; }
+  @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .modal-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 20px; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 24px; justify-content: flex-end; }
+
+  .complete-screen { text-align: center; padding: 60px 20px; }
+  .complete-icon { font-size: 4rem; margin-bottom: 16px; }
+  .complete-title { font-size: 1.8rem; font-weight: 800; margin-bottom: 8px; }
+  .complete-sub { color: var(--text2); margin-bottom: 32px; }
+  .complete-stats { display: flex; justify-content: center; gap: 24px; margin-bottom: 32px; flex-wrap: wrap; }
+  .cs-item { text-align: center; }
+  .cs-num { font-size: 2rem; font-weight: 800; font-family: 'Space Mono', monospace; }
+  .cs-label { font-size: 0.75rem; color: var(--text2); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+
+  .export-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; margin-top: 24px; }
+  .export-section h3 { font-size: 0.9rem; font-weight: 700; margin-bottom: 16px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.06em; }
+  .export-btns { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  .nav-tabs { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 4px; margin-bottom: 24px; overflow-x: auto; }
+  .nav-tab { flex: 1; min-width: fit-content; padding: 8px 16px; border-radius: 8px; border: none; background: transparent; color: var(--text2); font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.8rem; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .nav-tab.active { background: var(--surface2); color: var(--text); }
+  .nav-tab:hover:not(.active) { color: var(--text); }
+
+  .empty { text-align: center; padding: 60px 20px; color: var(--text2); }
+  .empty-icon { font-size: 3rem; margin-bottom: 12px; }
+  .empty-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 6px; color: var(--text); }
+
+  @media (max-width: 600px) {
+    #app { padding: 12px; }
+    .header { flex-direction: column; align-items: flex-start; gap: 12px; }
+    .card-face { padding: 28px 20px; min-height: 200px; }
+    .card-text { font-size: 1.1rem; }
+    .card-actions { gap: 8px; }
+    .card-action { padding: 10px 12px; font-size: 0.8rem; }
+    .header-stats { display: none; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div class="header-title">Flash<span>Cards</span></div>
+    <div class="header-stats" id="headerStats"></div>
+  </div>
+
+  <div class="piles-bar">
+    <div class="pile-card pile-1" onclick="startTestFromPile(1)" title="Test solo falladas">
+      <div class="pile-num" id="pile1Count">0</div>
+      <div class="pile-label">❌ Falladas</div>
+    </div>
+    <div class="pile-card pile-2" onclick="startTestFromPile(2)" title="Test solo a medias">
+      <div class="pile-num" id="pile2Count">0</div>
+      <div class="pile-label">🟡 A medias</div>
+    </div>
+    <div class="pile-card pile-3" onclick="startTestFromPile(3)" title="Test solo sabidas">
+      <div class="pile-num" id="pile3Count">0</div>
+      <div class="pile-label">✅ Me lo sé</div>
+    </div>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-label">
+      <span>Progreso general</span>
+      <span id="progressPct">0%</span>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+  </div>
+
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showView('home')">🏠 Inicio</button>
+    <button class="nav-tab" onclick="showView('add')">➕ Añadir</button>
+    <button class="nav-tab" onclick="showView('test-menu')">🎯 Test</button>
+    <button class="nav-tab" onclick="showView('manage')">📋 Gestionar</button>
+    <button class="nav-tab" onclick="showView('stats')">📊 Stats</button>
+  </div>
+
+  <div class="view active" id="view-home">
+    <div class="main-actions">
+      <button class="btn btn-primary btn-lg" onclick="showView('add')">➕ Añadir Tarjeta</button>
+      <button class="btn btn-ghost btn-lg" onclick="showView('test-menu')">🎯 Empezar Test</button>
+      <button class="btn btn-ghost" onclick="confirmReset()">🔄 Resetear Todo</button>
+    </div>
+    <div id="homeEmptyState" style="display:none">
+      <div class="empty">
+        <div class="empty-icon">🃏</div>
+        <div class="empty-title">No hay tarjetas aún</div>
+        <p style="margin-bottom:20px">Añade tu primera tarjeta para empezar a estudiar</p>
+        <button class="btn btn-primary" onclick="showView('add')">➕ Añadir Tarjeta</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="view" id="view-add">
+    <div class="form-card">
+      <div class="form-title">➕ Añadir Tarjeta</div>
+      <div class="form-group">
+        <label class="form-label">Categoría</label>
+        <div class="cat-toggle">
+          <button class="cat-btn active" data-cat="Leyes" onclick="selectCat(this)">⚖️ Leyes</button>
+          <button class="cat-btn" data-cat="Tecnología" onclick="selectCat(this)">💻 Tecnología</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Pregunta / Concepto</label>
+        <textarea class="form-textarea" id="addQuestion" placeholder="Ej: Estándar de AES" rows="3"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Respuesta</label>
+        <textarea class="form-textarea" id="addAnswer" placeholder="Ej: FIPS 197 (ISO/IEC 18033-3)" rows="3"></textarea>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" onclick="addCard()">💾 Guardar</button>
+        <button class="btn btn-ghost" onclick="addCardAndContinue()">💾 Guardar y Añadir Otra</button>
+        <button class="btn btn-ghost" onclick="showView('home')">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="view" id="view-test-menu">
+    <div class="test-menu">
+      <h2>🎯 Empezar Test</h2>
+      <p>Selecciona qué tarjetas quieres repasar</p>
+      <div class="test-options">
+        <div class="test-opt" onclick="startTest('all')">
+          <span class="icon">🃏</span>
+          <div class="label">Todas</div>
+          <div class="sub" id="testOptAll">0 tarjetas</div>
+        </div>
+        <div class="test-opt" onclick="startTest('Leyes')">
+          <span class="icon">⚖️</span>
+          <div class="label">Solo Leyes</div>
+          <div class="sub" id="testOptLeyes">0 tarjetas</div>
+        </div>
+        <div class="test-opt" onclick="startTest('Tecnología')">
+          <span class="icon">💻</span>
+          <div class="label">Solo Tecnología</div>
+          <div class="sub" id="testOptTech">0 tarjetas</div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Filtrar por montón</label>
+        <div class="pile-filter">
+          <button class="pile-filter-btn active" data-pile="all" onclick="togglePileFilter(this)">Todos</button>
+          <button class="pile-filter-btn" data-pile="1" onclick="togglePileFilter(this)">❌ Falladas</button>
+          <button class="pile-filter-btn" data-pile="2" onclick="togglePileFilter(this)">🟡 A medias</button>
+          <button class="pile-filter-btn" data-pile="3" onclick="togglePileFilter(this)">✅ Me lo sé</button>
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:16px">
+        <label class="form-label">Orden</label>
+        <div style="display:flex;gap:8px">
+          <button class="pile-filter-btn active" id="orderRandom" onclick="setOrder('random',this)">🔀 Aleatorio</button>
+          <button class="pile-filter-btn" id="orderSeq" onclick="setOrder('sequential',this)">🔢 Secuencial</button>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="showView('home')" style="margin-top:8px">← Volver</button>
+    </div>
+  </div>
+
+  <div class="view" id="view-test">
+    <div class="test-header">
+      <div>
+        <div class="test-progress-text" id="testProgressText">Tarjeta 1 de 10</div>
+        <div class="test-progress-track"><div class="test-progress-fill" id="testProgressFill" style="width:0%"></div></div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="exitTest()">✕ Salir</button>
+    </div>
+    <div class="card-scene">
+      <div class="card-inner" id="cardInner" onclick="flipCard()">
+        <div class="card-face card-front">
+          <span class="card-face-label">Pregunta</span>
+          <span class="card-cat-badge" id="cardCatBadge"></span>
+          <div class="card-text" id="cardQuestion"></div>
+          <div class="card-hint">Toca para ver la respuesta →</div>
+        </div>
+        <div class="card-face card-back">
+          <span class="card-face-label">Respuesta</span>
+          <span class="card-cat-badge" id="cardCatBadge2"></span>
+          <div class="card-text" id="cardAnswer"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-actions" id="cardActions" style="display:none">
+      <button class="card-action action-fail" onclick="moveCard(1)">❌ Fallada</button>
+      <button class="card-action action-mid" onclick="moveCard(2)">🟡 A medias</button>
+      <button class="card-action action-good" onclick="moveCard(3)">✅ La sé</button>
+    </div>
+  </div>
+
+  <div class="view" id="view-manage">
+    <div class="manage-header">
+      <div class="search-wrap">
+        <input type="text" id="searchInput" placeholder="Buscar tarjetas..." oninput="searchCards()">
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <select class="form-select" style="width:auto;padding:10px 12px" id="filterCat" onchange="loadManage()">
+          <option value="">Todas las categorías</option>
+          <option value="Leyes">Leyes</option>
+          <option value="Tecnología">Tecnología</option>
+        </select>
+        <select class="form-select" style="width:auto;padding:10px 12px" id="filterPile" onchange="loadManage()">
+          <option value="">Todos los montones</option>
+          <option value="1">❌ Falladas</option>
+          <option value="2">🟡 A medias</option>
+          <option value="3">✅ Me lo sé</option>
+        </select>
+      </div>
+    </div>
+    <div class="manage-bulk" id="bulkActions" style="display:none">
+      <span class="select-count" id="selectCount">0 seleccionadas</span>
+      <button class="btn btn-danger btn-sm" onclick="deleteSelected()">🗑️ Eliminar seleccionadas</button>
+      <button class="btn btn-ghost btn-sm" onclick="clearSelection()">Deseleccionar</button>
+    </div>
+    <div class="cards-list" id="cardsList"></div>
+    <div class="export-section">
+      <h3>Exportar / Importar</h3>
+      <div class="export-btns">
+        <button class="btn btn-ghost btn-sm" onclick="exportJSON()">📤 Exportar JSON</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportCSV()">📤 Exportar CSV</button>
+        <label class="btn btn-ghost btn-sm" style="cursor:pointer">
+          📥 Importar JSON
+          <input type="file" accept=".json" style="display:none" onchange="importJSON(event)">
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div class="view" id="view-stats">
+    <div class="stats-grid" id="statsGrid"></div>
+    <div id="statsVisual"></div>
+  </div>
+
+  <div class="view" id="view-complete">
+    <div class="complete-screen">
+      <div class="complete-icon">🎉</div>
+      <div class="complete-title">¡Test completado!</div>
+      <div class="complete-sub">Has repasado todas las tarjetas</div>
+      <div class="complete-stats" id="completeStats"></div>
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="showView('test-menu')">🎯 Otro Test</button>
+        <button class="btn btn-ghost" onclick="showView('home')">🏠 Inicio</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <div class="modal-title">✏️ Editar Tarjeta</div>
+    <input type="hidden" id="editCardId">
+    <div class="form-group">
+      <label class="form-label">Categoría</label>
+      <div class="cat-toggle">
+        <button class="cat-btn active" data-cat="Leyes" onclick="selectEditCat(this)">⚖️ Leyes</button>
+        <button class="cat-btn" data-cat="Tecnología" onclick="selectEditCat(this)">💻 Tecnología</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Pregunta</label>
+      <textarea class="form-textarea" id="editQuestion" rows="3"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Respuesta</label>
+      <textarea class="form-textarea" id="editAnswer" rows="3"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="saveEdit()">💾 Guardar</button>
+      <button class="btn btn-ghost" onclick="closeModal('editModal')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="resetModal">
+  <div class="modal">
+    <div class="modal-title">🔄 Resetear Todo</div>
+    <p style="color:var(--text2);margin-bottom:8px">Todas las tarjetas volverán al montón "Falladas".</p>
+    <p style="color:var(--text3);font-size:0.85rem">Esta acción no se puede deshacer.</p>
+    <div class="modal-actions">
+      <button class="btn btn-danger" onclick="resetAll()">🔄 Resetear</button>
+      <button class="btn btn-ghost" onclick="closeModal('resetModal')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const API = '/api';
+let stats = {total:0,pile1:0,pile2:0,pile3:0,leyes:0,tecnologia:0,progress_percent:0};
+let testCards=[], testIndex=0, testPileFilter='all', testCatFilter='all', testOrder='random', testFlipped=false;
+let testSession={pile1:0,pile2:0,pile3:0};
+let allCards=[], selectedIds=new Set(), searchTimeout=null;
+let addCat='Leyes', editCat='Leyes';
+
+async function fetchJSON(url, opts={}) {
+  const res = await fetch(url, opts);
+  if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.error||'Error'); }
+  return res.json();
+}
+
+async function refreshStats() {
+  try {
+    stats = await fetchJSON(`${API}/cards/stats`);
+    document.getElementById('pile1Count').textContent = stats.pile1;
+    document.getElementById('pile2Count').textContent = stats.pile2;
+    document.getElementById('pile3Count').textContent = stats.pile3;
+    document.getElementById('progressPct').textContent = stats.progress_percent + '%';
+    document.getElementById('progressFill').style.width = stats.progress_percent + '%';
+    document.getElementById('headerStats').innerHTML = `
+      <div class="stat-pill"><div class="dot dot-red"></div>${stats.pile1}</div>
+      <div class="stat-pill"><div class="dot dot-yellow"></div>${stats.pile2}</div>
+      <div class="stat-pill"><div class="dot dot-green"></div>${stats.pile3}</div>`;
+    document.getElementById('testOptAll').textContent = stats.total + ' tarjetas';
+    document.getElementById('testOptLeyes').textContent = stats.leyes + ' tarjetas';
+    document.getElementById('testOptTech').textContent = stats.tecnologia + ' tarjetas';
+    document.getElementById('homeEmptyState').style.display = stats.total === 0 ? 'block' : 'none';
+  } catch(e) { console.error(e); }
+}
+
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  const m={home:0,add:1,'test-menu':2,manage:3,stats:4};
+  if (m[name]!==undefined) document.querySelectorAll('.nav-tab')[m[name]].classList.add('active');
+  if (name==='manage') loadManage();
+  if (name==='stats') loadStats();
+}
+
+function selectCat(btn) {
+  document.querySelectorAll('#view-add .cat-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); addCat=btn.dataset.cat;
+}
+function selectEditCat(btn) {
+  document.querySelectorAll('#editModal .cat-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); editCat=btn.dataset.cat;
+}
+
+async function addCard() {
+  const q=document.getElementById('addQuestion').value.trim();
+  const a=document.getElementById('addAnswer').value.trim();
+  if(!q||!a){toast('Rellena pregunta y respuesta','error');return;}
+  try {
+    await fetchJSON(`${API}/cards`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q,answer:a,category:addCat})});
+    document.getElementById('addQuestion').value='';
+    document.getElementById('addAnswer').value='';
+    await refreshStats(); toast('Tarjeta añadida ✓','success'); showView('home');
+  } catch(e){toast(e.message,'error');}
+}
+async function addCardAndContinue() {
+  const q=document.getElementById('addQuestion').value.trim();
+  const a=document.getElementById('addAnswer').value.trim();
+  if(!q||!a){toast('Rellena pregunta y respuesta','error');return;}
+  try {
+    await fetchJSON(`${API}/cards`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q,answer:a,category:addCat})});
+    document.getElementById('addQuestion').value='';
+    document.getElementById('addAnswer').value='';
+    document.getElementById('addQuestion').focus();
+    await refreshStats(); toast('Tarjeta añadida ✓','success');
+  } catch(e){toast(e.message,'error');}
+}
+
+function togglePileFilter(btn) {
+  document.querySelectorAll('.pile-filter-btn[data-pile]').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); testPileFilter=btn.dataset.pile;
+}
+function setOrder(order,btn) {
+  testOrder=order;
+  document.getElementById('orderRandom').classList.toggle('active',order==='random');
+  document.getElementById('orderSeq').classList.toggle('active',order==='sequential');
+}
+
+async function startTest(cat) {
+  testCatFilter=cat;
+  let url=`${API}/cards?`;
+  if(cat!=='all') url+=`category=${encodeURIComponent(cat)}&`;
+  if(testPileFilter!=='all') url+=`pile=${testPileFilter}&`;
+  try {
+    let cards=await fetchJSON(url);
+    if(cards.length===0){toast('No hay tarjetas con esos filtros','error');return;}
+    if(testOrder==='random') cards=shuffle(cards);
+    testCards=cards; testIndex=0; testSession={pile1:0,pile2:0,pile3:0};
+    showView('test'); showCard();
+  } catch(e){toast(e.message,'error');}
+}
+async function startTestFromPile(pile) {
+  let url=`${API}/cards?pile=${pile}`;
+  try {
+    let cards=await fetchJSON(url);
+    if(cards.length===0){toast('No hay tarjetas en ese montón','error');return;}
+    if(testOrder==='random') cards=shuffle(cards);
+    testCards=cards; testIndex=0; testSession={pile1:0,pile2:0,pile3:0};
+    showView('test'); showCard();
+  } catch(e){toast(e.message,'error');}
+}
+
+function showCard() {
+  if(testIndex>=testCards.length){showComplete();return;}
+  const card=testCards[testIndex];
+  testFlipped=false;
+  document.getElementById('cardInner').classList.remove('flipped');
+  document.getElementById('cardActions').style.display='none';
+  document.getElementById('cardQuestion').textContent=card.question;
+  document.getElementById('cardAnswer').textContent=card.answer;
+  const cc=card.category==='Leyes'?'badge-leyes':'badge-tech';
+  const ci=card.category==='Leyes'?'⚖️':'💻';
+  ['cardCatBadge','cardCatBadge2'].forEach(id=>{
+    const el=document.getElementById(id);
+    el.className=`card-cat-badge ${cc}`;
+    el.textContent=`${ci} ${card.category}`;
+  });
+  const pct=Math.round((testIndex/testCards.length)*100);
+  document.getElementById('testProgressText').textContent=`Tarjeta ${testIndex+1} de ${testCards.length}`;
+  document.getElementById('testProgressFill').style.width=pct+'%';
+}
+function flipCard() {
+  if(testFlipped)return;
+  testFlipped=true;
+  document.getElementById('cardInner').classList.add('flipped');
+  setTimeout(()=>{document.getElementById('cardActions').style.display='flex';},300);
+}
+async function moveCard(pile) {
+  const card=testCards[testIndex];
+  try {
+    await fetchJSON(`${API}/cards/${card.id}/pile`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({pile})});
+    testSession['pile'+pile]++; testIndex++; await refreshStats(); showCard();
+  } catch(e){toast(e.message,'error');}
+}
+function exitTest() {
+  if(confirm('¿Salir del test?')) showView('home');
+}
+function showComplete() {
+  document.getElementById('completeStats').innerHTML=`
+    <div class="cs-item"><div class="cs-num" style="color:var(--red)">${testSession.pile1}</div><div class="cs-label">Falladas</div></div>
+    <div class="cs-item"><div class="cs-num" style="color:var(--yellow)">${testSession.pile2}</div><div class="cs-label">A medias</div></div>
+    <div class="cs-item"><div class="cs-num" style="color:var(--green)">${testSession.pile3}</div><div class="cs-label">Sabidas</div></div>`;
+  showView('complete'); refreshStats();
+}
+
+async function loadManage() {
+  selectedIds.clear(); updateBulkActions();
+  const search=document.getElementById('searchInput').value;
+  const cat=document.getElementById('filterCat').value;
+  const pile=document.getElementById('filterPile').value;
+  let url=`${API}/cards?`;
+  if(cat) url+=`category=${encodeURIComponent(cat)}&`;
+  if(pile) url+=`pile=${pile}&`;
+  if(search) url+=`search=${encodeURIComponent(search)}&`;
+  try {
+    allCards=await fetchJSON(url); renderCardsList();
+  } catch(e){toast(e.message,'error');}
+}
+function renderCardsList() {
+  const list=document.getElementById('cardsList');
+  if(allCards.length===0){
+    list.innerHTML='<div class="empty"><div class="empty-icon">🔍</div><div class="empty-title">No hay tarjetas</div></div>';
+    return;
+  }
+  list.innerHTML=allCards.map(c=>{
+    const pl=['','❌','🟡','✅'][c.pile];
+    const ci=c.category==='Leyes'?'⚖️':'💻';
+    const chk=selectedIds.has(c.id)?'checked':'';
+    return `<div class="card-item ${selectedIds.has(c.id)?'selected':''}" id="ci-${c.id}">
+      <input type="checkbox" ${chk} onchange="toggleSelect(${c.id},this)">
+      <div class="card-item-content">
+        <div class="card-item-q">${esc(c.question)}</div>
+        <div class="card-item-a">${esc(c.answer)}</div>
+      </div>
+      <div class="card-item-meta">
+        <span class="pile-badge pile-badge-${c.pile}">${pl}</span>
+        <span style="font-size:.75rem;color:var(--text3)">${ci}</span>
+        <button class="btn btn-ghost btn-sm" onclick="openEdit(${c.id})">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteSingle(${c.id})">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function toggleSelect(id,cb) {
+  if(cb.checked)selectedIds.add(id);else selectedIds.delete(id);
+  document.getElementById('ci-'+id)?.classList.toggle('selected',cb.checked);
+  updateBulkActions();
+}
+function updateBulkActions() {
+  document.getElementById('bulkActions').style.display=selectedIds.size>0?'flex':'none';
+  document.getElementById('selectCount').textContent=selectedIds.size+' seleccionadas';
+}
+function clearSelection(){selectedIds.clear();renderCardsList();updateBulkActions();}
+function searchCards(){clearTimeout(searchTimeout);searchTimeout=setTimeout(loadManage,300);}
+
+async function deleteSelected() {
+  if(!selectedIds.size)return;
+  if(!confirm(`¿Eliminar ${selectedIds.size} tarjeta(s)?`))return;
+  const ids=[...selectedIds];
+  try {
+    const url=`${API}/cards?${ids.map(id=>`ids=${id}`).join('&')}`;
+    await fetchJSON(url,{method:'DELETE'});
+    selectedIds.clear(); toast(`${ids.length} eliminadas`,'success');
+    await refreshStats(); loadManage();
+  } catch(e){toast(e.message,'error');}
+}
+async function deleteSingle(id) {
+  if(!confirm('¿Eliminar esta tarjeta?'))return;
+  try {
+    await fetchJSON(`${API}/cards/${id}`,{method:'DELETE'});
+    toast('Tarjeta eliminada','success'); await refreshStats(); loadManage();
+  } catch(e){toast(e.message,'error');}
+}
+
+async function openEdit(id) {
+  const card=allCards.find(c=>c.id===id); if(!card)return;
+  document.getElementById('editCardId').value=id;
+  document.getElementById('editQuestion').value=card.question;
+  document.getElementById('editAnswer').value=card.answer;
+  editCat=card.category;
+  document.querySelectorAll('#editModal .cat-btn').forEach(b=>b.classList.toggle('active',b.dataset.cat===card.category));
+  document.getElementById('editModal').classList.add('open');
+}
+async function saveEdit() {
+  const id=document.getElementById('editCardId').value;
+  const q=document.getElementById('editQuestion').value.trim();
+  const a=document.getElementById('editAnswer').value.trim();
+  if(!q||!a){toast('Rellena todos los campos','error');return;}
+  try {
+    await fetchJSON(`${API}/cards/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q,answer:a,category:editCat})});
+    closeModal('editModal'); toast('Actualizada ✓','success'); await refreshStats(); loadManage();
+  } catch(e){toast(e.message,'error');}
+}
+
+async function loadStats() {
+  await refreshStats();
+  const t=stats.total||1;
+  document.getElementById('statsGrid').innerHTML=`
+    <div class="stat-card"><div class="stat-big">${stats.total}</div><div class="stat-desc">Total</div></div>
+    <div class="stat-card"><div class="stat-big" style="color:var(--red)">${stats.pile1}</div><div class="stat-desc">❌ Falladas</div></div>
+    <div class="stat-card"><div class="stat-big" style="color:var(--yellow)">${stats.pile2}</div><div class="stat-desc">🟡 A medias</div></div>
+    <div class="stat-card"><div class="stat-big" style="color:var(--green)">${stats.pile3}</div><div class="stat-desc">✅ Sabidas</div></div>
+    <div class="stat-card"><div class="stat-big" style="color:var(--accent)">${stats.progress_percent}%</div><div class="stat-desc">Progreso</div></div>
+    <div class="stat-card"><div class="stat-big" style="color:var(--accent2)">${stats.leyes}</div><div class="stat-desc">⚖️ Leyes</div></div>
+    <div class="stat-card"><div class="stat-big" style="color:var(--accent2)">${stats.tecnologia}</div><div class="stat-desc">💻 Tecnología</div></div>`;
+  const p1=Math.round(stats.pile1/t*100), p2=Math.round(stats.pile2/t*100), p3=Math.round(stats.pile3/t*100);
+  document.getElementById('statsVisual').innerHTML=`
+    <div class="bar-row"><div class="bar-label">❌ Falladas</div><div class="bar-track"><div class="bar-fill bar-fill-1" style="width:${p1}%">${p1}%</div></div></div>
+    <div class="bar-row"><div class="bar-label">🟡 A medias</div><div class="bar-track"><div class="bar-fill bar-fill-2" style="width:${p2}%">${p2}%</div></div></div>
+    <div class="bar-row"><div class="bar-label">✅ Me lo sé</div><div class="bar-track"><div class="bar-fill bar-fill-3" style="width:${p3}%">${p3}%</div></div></div>`;
+}
+
+function confirmReset(){document.getElementById('resetModal').classList.add('open');}
+async function resetAll() {
+  try {
+    await fetchJSON(`${API}/reset`,{method:'POST'});
+    closeModal('resetModal'); toast('Reseteado','info'); await refreshStats();
+  } catch(e){toast(e.message,'error');}
+}
+
+async function exportJSON() {
+  try {
+    const cards=await fetchJSON(`${API}/export/json`);
+    download(new Blob([JSON.stringify(cards,null,2)],{type:'application/json'}),'flashcards.json');
+    toast('Exportado ✓','success');
+  } catch(e){toast(e.message,'error');}
+}
+async function exportCSV() {
+  try {
+    const res=await fetch(`${API}/export/csv`);
+    download(await res.blob(),'flashcards.csv');
+    toast('Exportado ✓','success');
+  } catch(e){toast(e.message,'error');}
+}
+async function importJSON(event) {
+  const file=event.target.files[0]; if(!file)return;
+  try {
+    const text=await file.text();
+    const cards=JSON.parse(text);
+    const r=await fetchJSON(`${API}/import/json`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cards)});
+    toast(`Importadas ${r.imported} tarjetas`,'success'); await refreshStats(); loadManage();
+  } catch(e){toast('Error: '+e.message,'error');}
+  event.target.value='';
+}
+
+function shuffle(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;}
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function download(blob,name){const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=name;a.click();URL.revokeObjectURL(u);}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+let toastTimer=null;
+function toast(msg,type='info'){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className=`show ${type}`;
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>{el.className='';},3000);
+}
+document.querySelectorAll('.modal-overlay').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
+document.addEventListener('keydown',e=>{
+  if(document.getElementById('view-test').classList.contains('active')){
+    if(e.key===' '&&!testFlipped){e.preventDefault();flipCard();}
+    if(testFlipped){if(e.key==='1')moveCard(1);if(e.key==='2')moveCard(2);if(e.key==='3')moveCard(3);}
+  }
+});
+refreshStats();
+</script>
+</body>
+</html>
