@@ -4,11 +4,9 @@ FROM golang:1.22-alpine AS builder
 WORKDIR /build
 RUN apk add --no-cache git
 
-COPY go.mod ./
-RUN go mod download || go get modernc.org/sqlite
-
-COPY main.go .
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o flashcards .
+COPY go.mod main.go ./
+RUN go mod tidy && \
+    CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o flashcards .
 
 ### Stage 2: Final (~15MB)
 FROM alpine:3.19
