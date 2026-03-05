@@ -56,5 +56,5 @@ jobs:
         uses: peter-evans/repository-dispatch@v3
         with:
           token: ${{ secrets.PARENT_REPO_TOKEN }}
-          repository: avillaseca01/TU_REPO_PRINCIPAL
+          repository: avillaseca01/HOME-NAS
           event-type: update-flashcards-submodule
